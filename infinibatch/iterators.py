@@ -1252,6 +1252,7 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
         iterators and closes all PrefetchIterators in the pipeline.
         For pipelines that do not contain PrefetchIterators this function has no effect.
         """
+        logger.warning(f'---close-- self._local_queue.qsize()current threads is: {self._local_queue.qsize()}')
         if not self._is_closed:
             self._is_closed = True
             self._shutdown()
@@ -1294,9 +1295,13 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
             assert self._queue_fetcher_thread is not None
             # sanity check that this is actually the parent of the prefetch process
             assert self._prefetch_process._parent_pid == os.getpid()
+
+            logger.warning(f' _shutdown self._local_queue.qsize is {self._local_queue.qsize()}')
+            logger.warning(f' _shutdown  self._queue_fetcher_thread ({self._queue_fetcher_thread.native_id}) is_alive:{self._queue_fetcher_thread.is_alive()}')
             # shut down queue fetcher thread
             self._queue_fetcher_thread_should_terminate.set()
             self._queue_fetcher_thread.join()
+            logger.warning(f' _shutdown  self._queue_fetcher_thread ({self._queue_fetcher_thread.native_id}) is_alive:{self._queue_fetcher_thread.is_alive()}')
             self._queue_fetcher_thread = None
             # shut down prefetch process
             self._prefetch_process_should_terminate.set()
@@ -1372,6 +1377,7 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
 
     def __del__(self):
         if hasattr(self, "_prefetch_process") and not self._is_closed:
+            logger.warning(f' __del__ self._local_queue.qsize: is {self._local_queue.qsize()}')
             logger.warning(
                 f"unclosed PrefetchIterator {self!r}: not closing a PrefetchIterator may lead to dangling processes and hangs on finalization"
             )
