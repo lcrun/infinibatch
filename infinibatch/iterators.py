@@ -1376,6 +1376,7 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
         return True
 
     def __del__(self):
+        logger.warning(f' __del__ self._local_queue.qsize: is {self._local_queue.qsize()}')
         if hasattr(self, "_prefetch_process") and not self._is_closed:
             logger.warning(f' __del__ self._local_queue.qsize: is {self._local_queue.qsize()}')
             logger.warning(
