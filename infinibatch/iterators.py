@@ -1313,16 +1313,22 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
         source_iterator, item_offset, buffer_size, inter_process_queue, should_terminate_event
     ):  # behavior of the prefetching process, only to be called from that process!
         _advance_iterator(source_iterator, item_offset)  # skip to checkpoint
+        logger.warning("start _prefetch_process_fn ")
+
         while True:
             try:
+                logger.warning("_prefetch_process_fn before next(source_iterator)")
                 item = next(source_iterator)
+                logger.warning(f"_prefetch_process_fn done  next(source_iterator)")
             except StopIteration:
+                logger.warning("_prefetch_process_fn enter except StopIteration")
                 _ForkPrefetchIteratorExperimental._try_put(inter_process_queue, StopIteration(), should_terminate_event)
                 # Because of the way PyTorch transfers tensors through shared memory (see comment at top of this class)
                 # we have to keep the prefetch process alive until we are sure that
                 # no more items are taken from the inter-process queue.
                 # This event is used to communicate to the prefetch process that it is safe to terminate.
                 should_terminate_event.wait()
+                logger.warning("_prefetch_process_fn except StopIteration done should_terminate_event.wait()")
                 break
             if item_offset == buffer_size - 1:
                 # for efficiency, we send a new source state only at the END of each window of length _buffer_size
@@ -1333,14 +1339,19 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
                 source_state = None
                 item_offset += 1
             msg = (item, source_state)
+            logger.warning("_prefetch_process_fn before _ForkPrefetchIteratorExperimental ")
             should_terminate = _ForkPrefetchIteratorExperimental._try_put(
                 inter_process_queue, msg, should_terminate_event
             )
+            logger.warning(f"_prefetch_process_fn done  _ForkPrefetchIteratorExperimental ")
             if should_terminate:
                 break
+        logger.warning(f"_prefetch_process_fn before source_iterator.close()")
         source_iterator.close()
+        logger.warning(f"end _prefetch_process_fn ")
 
     def _queue_fetcher_thread_fn(self):
+        logger.warning(f"start _queue_fetcher_thread_fn before")
         while True:
             # This get-operation cannot deadlock:
             # For his operation to deadlock, the queue must be empty and the prefetch process must never put
@@ -1351,14 +1362,17 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
             # terminate because the corresponding signal is set as part of a _shutdown(). However, we terminate
             # and join this thread before we set the terminate signal for the prefetch process,
             # so this case cannot happen.
+            logger.warning(f"_queue_fetcher_thread_fn before  self._inter_process_queue.get ")
             msg = self._inter_process_queue.get()
             should_terminate = _ForkPrefetchIteratorExperimental._try_put(
                 self._local_queue, msg, self._queue_fetcher_thread_should_terminate
             )
+            logger.warning(f"_queue_fetcher_thread_fn dome  self._inter_process_queue.get ")
             if should_terminate:
                 return
             if isinstance(msg, StopIteration):
                 return
+        logger.warning(f"end _queue_fetcher_thread_fn before")
 
     @staticmethod
     def _try_put(q, msg, should_terminate_event, timeout=0.001):
