@@ -1210,8 +1210,14 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
         # In that case, a StopIteration was the last item ever put on the local queue.
         # That stop iteration would have caused self._is_exhausted to be set to True,
         # which means the following line would never have been reached, a contradiction.
+        logger.warning(f'__next__  before msg = self._local_queue.get() _local_queue.qsize: {self._local_queue.qsize()}')
         msg = self._local_queue.get()
+        logger.warning(
+            f'__next__  after msg = self._local_queue.get() _local_queue.qsize: {self._local_queue.qsize()}')
+
         if isinstance(msg, StopIteration):
+            logger.warning(
+                f'__next__   if isinstance(msg, StopIteration) ')
             self._is_exhausted = True
             # The source iterator is exhausted.
             # At this point, the queue fetcher thread should already have terminated.
@@ -1225,7 +1231,11 @@ class _ForkPrefetchIteratorExperimental(CheckpointableIterator):
             # no more elements are taken from the inter_process_queue
             # and then signal the prefetch process to terminate.
             self._queue_fetcher_thread.join()
+            logger.warning(
+                f'__next__  before  self._prefetch_process_should_terminate.set() ')
             self._prefetch_process_should_terminate.set()
+            logger.warning(
+                f'__next__  before  raise StopIteration() ')
             raise StopIteration()
         # for efficiency, the prefetch_source_state is only transmitted at the end of each window of length _buffer_size
         item, prefetch_source_state = msg
